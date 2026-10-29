@@ -201,12 +201,45 @@ func (m *YtdlModule) processYtdl(peer tg.InputPeerClass, msg *types.MessageConte
 	}
 	ulStartTime = time.Now()
 
-	finalName, caption := ext.FormatFilename(filepath.Base(downloadedFile), user, downloadedFile)
-	finalName = ext.SanitizeFilename(finalName)
-	renamedPath := filepath.Join(taskDir, finalName)
-	if renamedPath != downloadedFile {
-		_ = os.Rename(downloadedFile, renamedPath)
-		downloadedFile = renamedPath
+	originalIncomingName := filepath.Base(downloadedFile)
+	finalName, caption := "", ""
+	smartApplied := false
+	if user != nil && user.Autorename && strings.EqualFold(user.RenameMethod, "smart") {
+		if !cfg.SmartRenameEnabled {
+			log.Printf("[YTDLP Smart AutoRename] disabled by configuration; keeping %s", originalIncomingName)
+			finalName = filepath.Base(downloadedFile)
+			caption = ext.BuildSmartFallbackCaption(downloadedFile, user, originalIncomingName)
+			smartApplied = true
+		} else {
+			smartResult, smartCaption, smartErr := ext.PrepareSmartRename(ctx, downloadedFile, user, originalIncomingName)
+			if smartErr != nil {
+				log.Printf("[YTDLP Smart AutoRename] %s: %v; keeping original path", originalIncomingName, smartErr)
+				finalName = filepath.Base(downloadedFile)
+				caption = ext.BuildSmartFallbackCaption(downloadedFile, user, originalIncomingName)
+				smartApplied = true
+			} else {
+				ext.LogSmartRenameWarnings(smartResult)
+				finalName, caption, downloadedFile, smartApplied = smartResult.PhysicalFilename, smartCaption, smartResult.PhysicalPath, true
+			}
+		}
+	}
+	if !smartApplied {
+		finalName, caption = ext.FormatFilename(originalIncomingName, user, downloadedFile)
+		finalName = ext.SanitizeFilename(finalName)
+		renamedPath := filepath.Join(taskDir, finalName)
+		if renamedPath != downloadedFile {
+			if renameErr := ext.SafeRenameFile(downloadedFile, finalName); renameErr != nil {
+				attemptedName := finalName
+				log.Printf("[YTDLP Rename] Could not rename %s to %s: %v; keeping original path", filepath.Base(downloadedFile), finalName, renameErr)
+				finalName = filepath.Base(downloadedFile)
+				caption = strings.ReplaceAll(caption, attemptedName, finalName)
+			} else {
+				downloadedFile = renamedPath
+			}
+		}
+	}
+	if finalName == "" {
+		finalName = filepath.Base(downloadedFile)
 	}
 
 	fi, sErr := os.Stat(downloadedFile)

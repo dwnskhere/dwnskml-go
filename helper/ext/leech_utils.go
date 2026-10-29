@@ -241,12 +241,20 @@ func FormatFilename(filename string, user *types.UserSettings, filePath string) 
 	}
 
 	if user != nil && user.Autorename {
-		if user.RenameMethod == "auto" && remnameAuto != "" {
-			formatted = ApplyTemplateRename(formatted, remnameAuto)
-		} else if user.RenameMethod == "regex" && remnameRegex != "" {
-			formatted = applyRegexRemname(formatted, remnameRegex)
-		} else if remnameAuto != "" {
-			formatted = ApplyTemplateRename(formatted, remnameAuto)
+		switch strings.ToLower(strings.TrimSpace(user.RenameMethod)) {
+		case "smart":
+			// Smart mode is executed by PrepareSmartRename in the shared leech/yt-dlp pipeline.
+			// Do not silently route it through template mode if probing/provider lookup is unavailable.
+		case "regex":
+			if remnameRegex != "" {
+				formatted = applyRegexRemname(formatted, remnameRegex)
+			} else if remnameAuto != "" { // preserve the historical fallback when regex is unset
+				formatted = ApplyTemplateRename(formatted, remnameAuto)
+			}
+		default:
+			if remnameAuto != "" {
+				formatted = ApplyTemplateRename(formatted, remnameAuto)
+			}
 		}
 	}
 

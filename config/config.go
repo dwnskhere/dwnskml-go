@@ -13,79 +13,85 @@ import (
 )
 
 type Config struct {
-	BotToken                  string
-	OwnerID                   int64
-	OwnerUsername             string
-	TelegramAPI               int
-	TelegramHash              string
-	UserSessionString         string
-	DatabaseURL               string
-	DownloadDir               string
-	CmdSuffix                 string
-	AuthorizedChats           []int64
-	SudoUsers                 []int64
-	BlacklistUsers            []int64
-	StatusLimit               int
-	StatusUpdateInterval      int
-	AutoDeleteMessageDuration int
-	LeechSplitSize            int64
-	EqualSplits               bool
-	AsDocument                bool
-	MediaGroup                bool
-	BotPM                     bool
-	CapFont                   string
-	LeechFilenamePrefix       string
-	LeechFilenameSuffix       string
-	LeechFilenameCaption      string
-	LeechFilenameRemname      string
-	LeechFilenameRemnameAuto  string
-	LeechFilenameRemnameRegex string
-	LeechLogID                int64
-	LinksLogID                int64
-	TorrentTimeout            int
-	Aria2Port                 int
-	BaseURL                   string
-	BaseURLPort               int
-	MegaEmail                 string
-	MegaPassword              string
-	TokenTimeout              int64
-	LoginPass                 string
-	Shortener                 string
-	ShortenerAPI              string
-	ShortenerEnabled          bool
-	TokenInPM                 bool
-	ScreenshotsMode           bool
-	ShowMediaInfo             bool
-	SaveMsg                   bool
-	SourceLink                bool
-	Metadata                  string
-	TitleName                 string
-	AuthorName                string
-	AuthorURL                 string
-	BotTheme                  string
-	ShowExtraCmds             bool
-	Timezone                  string
-	EnableFFmpegCmds          bool
-	FFmpegEncoding            bool
-	TMDBAccessToken           string
-	AutoThumbnail             bool
-	CoverImage                string
-	DDLAPI                    string
-	QueueAll                  int
-	QueueDownload             int
-	QueueUpload               int
-	LeechLimit                int64 // GB
-	TorrentLimit              int64 // GB
-	DirectLimit               int64 // GB
-	YtdlpLimit                int64 // GB
-	MegaLimit                 int64 // GB
-	ArchiveLimit              int64 // GB
-	ExtractLimit              int64 // GB
-	DailyLeechLimit           int64 // GB
-	DailyTaskLimit            int   // count
-	StorageThreshold          int64 // GB
-	WorkerBotTokens           []string
-	DumpChatID                int64
+	BotToken                    string
+	OwnerID                     int64
+	OwnerUsername               string
+	TelegramAPI                 int
+	TelegramHash                string
+	UserSessionString           string
+	DatabaseURL                 string
+	DownloadDir                 string
+	CmdSuffix                   string
+	AuthorizedChats             []int64
+	SudoUsers                   []int64
+	BlacklistUsers              []int64
+	StatusLimit                 int
+	StatusUpdateInterval        int
+	AutoDeleteMessageDuration   int
+	LeechSplitSize              int64
+	EqualSplits                 bool
+	AsDocument                  bool
+	MediaGroup                  bool
+	BotPM                       bool
+	CapFont                     string
+	LeechFilenamePrefix         string
+	LeechFilenameSuffix         string
+	LeechFilenameCaption        string
+	LeechFilenameRemname        string
+	LeechFilenameRemnameAuto    string
+	LeechFilenameRemnameRegex   string
+	SmartRenameEnabled          bool
+	SmartRenameLookupEnabled    bool
+	SmartRenameProviderPriority string
+	SmartRenameMaxChars         int
+	SmartRenameProbeTimeout     int
+	SmartRenameLookupTimeout    int
+	LeechLogID                  int64
+	LinksLogID                  int64
+	TorrentTimeout              int
+	Aria2Port                   int
+	BaseURL                     string
+	BaseURLPort                 int
+	MegaEmail                   string
+	MegaPassword                string
+	TokenTimeout                int64
+	LoginPass                   string
+	Shortener                   string
+	ShortenerAPI                string
+	ShortenerEnabled            bool
+	TokenInPM                   bool
+	ScreenshotsMode             bool
+	ShowMediaInfo               bool
+	SaveMsg                     bool
+	SourceLink                  bool
+	Metadata                    string
+	TitleName                   string
+	AuthorName                  string
+	AuthorURL                   string
+	BotTheme                    string
+	ShowExtraCmds               bool
+	Timezone                    string
+	EnableFFmpegCmds            bool
+	FFmpegEncoding              bool
+	TMDBAccessToken             string
+	AutoThumbnail               bool
+	CoverImage                  string
+	DDLAPI                      string
+	QueueAll                    int
+	QueueDownload               int
+	QueueUpload                 int
+	LeechLimit                  int64 // GB
+	TorrentLimit                int64 // GB
+	DirectLimit                 int64 // GB
+	YtdlpLimit                  int64 // GB
+	MegaLimit                   int64 // GB
+	ArchiveLimit                int64 // GB
+	ExtractLimit                int64 // GB
+	DailyLeechLimit             int64 // GB
+	DailyTaskLimit              int   // count
+	StorageThreshold            int64 // GB
+	WorkerBotTokens             []string
+	DumpChatID                  int64
 }
 
 var (
@@ -124,78 +130,84 @@ func LoadConfig(path string) (*Config, error) {
 	_ = godotenv.Load("config.env")
 
 	GlobalConfig = Config{
-		BotToken:                  getEnv("BOT_TOKEN", ""),
-		OwnerID:                   getEnvInt64("OWNER_ID", 0),
-		OwnerUsername:             strings.TrimPrefix(getEnv("OWNER_USERNAME", "exe_aquib"), "@"),
-		TelegramAPI:               getEnvInt("TELEGRAM_API", 0),
-		TelegramHash:              getEnv("TELEGRAM_HASH", ""),
-		UserSessionString:         getEnv("USER_SESSION_STRING", ""),
-		DatabaseURL:               getEnv("DATABASE_URL", ""),
-		DownloadDir:               cleanDir(getEnv("DOWNLOAD_DIR", "/usr/src/app/downloads/")),
-		CmdSuffix:                 getEnv("CMD_SUFFIX", ""),
-		AuthorizedChats:           parseIDList(getEnv("AUTHORIZED_CHATS", "")),
-		SudoUsers:                 parseIDList(getEnv("SUDO_USERS", "")),
-		BlacklistUsers:            parseIDList(getEnv("BLACKLIST_USERS", "")),
-		StatusLimit:               getEnvInt("STATUS_LIMIT", 4),
-		StatusUpdateInterval:      getEnvInt("STATUS_UPDATE_INTERVAL", 10),
-		AutoDeleteMessageDuration: getEnvInt("AUTO_DELETE_MESSAGE_DURATION", 60),
-		LeechSplitSize:            getEnvInt64("LEECH_SPLIT_SIZE", 2097152000), // ~2GB
-		EqualSplits:               getEnvBool("EQUAL_SPLITS", false),
-		AsDocument:                getEnvBool("AS_DOCUMENT", true),
-		MediaGroup:                getEnvBool("MEDIA_GROUP", false),
-		BotPM:                     getEnvBool("BOT_PM", false),
-		CapFont:                   getEnv("CAP_FONT", "code"),
-		LeechFilenamePrefix:       getEnv("LEECH_FILENAME_PREFIX", ""),
-		LeechFilenameSuffix:       getEnv("LEECH_FILENAME_SUFFIX", ""),
-		LeechFilenameCaption:      getEnv("LEECH_FILENAME_CAPTION", ""),
-		LeechFilenameRemname:      getEnv("LEECH_FILENAME_REMNAME", ""),
-		LeechFilenameRemnameAuto:  getEnv("LEECH_FILENAME_REMNAME_AUTO", ""),
-		LeechFilenameRemnameRegex: getEnv("LEECH_FILENAME_REMNAME_REGEX", ""),
-		LeechLogID:                getEnvInt64("LEECH_LOG_ID", 0),
-		LinksLogID:                getEnvInt64("LINKS_LOG_ID", 0),
-		TorrentTimeout:            getEnvInt("TORRENT_TIMEOUT", 0),
-		Aria2Port:                 getEnvInt("ARIA2_PORT", 6810),
-		BaseURL:                   getEnv("BASE_URL", ""),
-		BaseURLPort:               getEnvInt("PORT", getEnvInt("BASE_URL_PORT", 23434)),
-		MegaEmail:                 getEnv("MEGA_EMAIL", ""),
-		MegaPassword:              getEnv("MEGA_PASSWORD", ""),
-		TokenTimeout:              getEnvInt64("TOKEN_TIMEOUT", 0),
-		LoginPass:                 getEnv("LOGIN_PASS", ""),
-		Shortener:                 getEnv("SHORTENER", ""),
-		ShortenerAPI:              getEnv("SHORTENER_API", ""),
-		ShortenerEnabled:          getEnvBool("SHORTENER_ENABLED", true),
-		TokenInPM:                 getEnvBool("TOKEN_IN_PM", true),
-		ScreenshotsMode:           getEnvBool("SCREENSHOTS_MODE", false),
-		ShowMediaInfo:             getEnvBool("SHOW_MEDIAINFO", false),
-		SaveMsg:                   getEnvBool("SAVE_MSG", false),
-		SourceLink:                getEnvBool("SOURCE_LINK", false),
-		Metadata:                  getEnv("METADATA", ""),
-		TitleName:                 getEnv("TITLE_NAME", "AZML-Go"),
-		AuthorName:                getEnv("AUTHOR_NAME", "AZML-Go"),
-		AuthorURL:                 getEnv("AUTHOR_URL", "https://t.me/CANON_BOTS"),
-		BotTheme:                  getEnv("BOT_THEME", "minimal"),
-		ShowExtraCmds:             getEnvBool("SHOW_EXTRA_CMDS", true),
-		Timezone:                  getEnv("TIMEZONE", "Asia/Kolkata"),
-		EnableFFmpegCmds:          getEnvBool("ENABLE_FFMPEG_CMDS", true),
-		FFmpegEncoding:            getEnvBool("FFMPEG_ENCODING", false),
-		TMDBAccessToken:           getEnv("TMDB_ACCESS_TOKEN", ""),
-		AutoThumbnail:             getEnvBool("AUTO_THUMBNAIL", false),
-		CoverImage:                getEnv("COVER_IMAGE", "https://graph.org/file/60f9f8bcb97d27f76f5c0.jpg"),
-		DDLAPI:                    getEnv("DDL_API", getEnv("THUNDER_API", "")),
-		QueueAll:                  getEnvInt("QUEUE_ALL", getEnvInt("BOT_MAX_TASKS", 4)),
-		QueueDownload:             getEnvInt("QUEUE_DOWNLOAD", getEnvInt("USER_MAX_TASKS", 2)),
-		QueueUpload:               getEnvInt("QUEUE_UPLOAD", 2),
-		LeechLimit:                getEnvInt64("LEECH_LIMIT", 0),
-		TorrentLimit:              getEnvInt64("TORRENT_LIMIT", 0),
-		DirectLimit:               getEnvInt64("DIRECT_LIMIT", 0),
-		YtdlpLimit:                getEnvInt64("YTDLP_LIMIT", 0),
-		MegaLimit:                 getEnvInt64("MEGA_LIMIT", 0),
-		ArchiveLimit:              getEnvInt64("ARCHIVE_LIMIT", 0),
-		ExtractLimit:              getEnvInt64("EXTRACT_LIMIT", 0),
-		DailyLeechLimit:           getEnvInt64("DAILY_LEECH_LIMIT", 0),
-		DailyTaskLimit:            getEnvInt("DAILY_TASK_LIMIT", 0),
-		StorageThreshold:          getEnvInt64("STORAGE_THRESHOLD", 1), // Default 1GB safety cushion
-		DumpChatID:                getEnvInt64("DUMP_CHAT_ID", getEnvInt64("BIN_CHANNEL", getEnvInt64("STORAGE_CHANNEL", getEnvInt64("STORAGE_CHANNELS", getEnvInt64("LEECH_LOG_ID", 0))))),
+		BotToken:                    getEnv("BOT_TOKEN", ""),
+		OwnerID:                     getEnvInt64("OWNER_ID", 0),
+		OwnerUsername:               strings.TrimPrefix(getEnv("OWNER_USERNAME", "exe_aquib"), "@"),
+		TelegramAPI:                 getEnvInt("TELEGRAM_API", 0),
+		TelegramHash:                getEnv("TELEGRAM_HASH", ""),
+		UserSessionString:           getEnv("USER_SESSION_STRING", ""),
+		DatabaseURL:                 getEnv("DATABASE_URL", ""),
+		DownloadDir:                 cleanDir(getEnv("DOWNLOAD_DIR", "/usr/src/app/downloads/")),
+		CmdSuffix:                   getEnv("CMD_SUFFIX", ""),
+		AuthorizedChats:             parseIDList(getEnv("AUTHORIZED_CHATS", "")),
+		SudoUsers:                   parseIDList(getEnv("SUDO_USERS", "")),
+		BlacklistUsers:              parseIDList(getEnv("BLACKLIST_USERS", "")),
+		StatusLimit:                 getEnvInt("STATUS_LIMIT", 4),
+		StatusUpdateInterval:        getEnvInt("STATUS_UPDATE_INTERVAL", 10),
+		AutoDeleteMessageDuration:   getEnvInt("AUTO_DELETE_MESSAGE_DURATION", 60),
+		LeechSplitSize:              getEnvInt64("LEECH_SPLIT_SIZE", 2097152000), // ~2GB
+		EqualSplits:                 getEnvBool("EQUAL_SPLITS", false),
+		AsDocument:                  getEnvBool("AS_DOCUMENT", true),
+		MediaGroup:                  getEnvBool("MEDIA_GROUP", false),
+		BotPM:                       getEnvBool("BOT_PM", false),
+		CapFont:                     getEnv("CAP_FONT", "code"),
+		LeechFilenamePrefix:         getEnv("LEECH_FILENAME_PREFIX", ""),
+		LeechFilenameSuffix:         getEnv("LEECH_FILENAME_SUFFIX", ""),
+		LeechFilenameCaption:        getEnv("LEECH_FILENAME_CAPTION", ""),
+		LeechFilenameRemname:        getEnv("LEECH_FILENAME_REMNAME", ""),
+		LeechFilenameRemnameAuto:    getEnv("LEECH_FILENAME_REMNAME_AUTO", ""),
+		LeechFilenameRemnameRegex:   getEnv("LEECH_FILENAME_REMNAME_REGEX", ""),
+		SmartRenameEnabled:          getEnvBool("SMART_AUTORENAME_ENABLED", true),
+		SmartRenameLookupEnabled:    getEnvBool("SMART_AUTORENAME_LOOKUP_ENABLED", true),
+		SmartRenameProviderPriority: getEnv("SMART_AUTORENAME_PROVIDER_PRIORITY", "kitsu,tmdb,cinemeta"),
+		SmartRenameMaxChars:         getEnvInt("SMART_AUTORENAME_MAX_CHARS", 60),
+		SmartRenameProbeTimeout:     getEnvInt("SMART_AUTORENAME_PROBE_TIMEOUT", 12),
+		SmartRenameLookupTimeout:    getEnvInt("SMART_AUTORENAME_LOOKUP_TIMEOUT", 8),
+		LeechLogID:                  getEnvInt64("LEECH_LOG_ID", 0),
+		LinksLogID:                  getEnvInt64("LINKS_LOG_ID", 0),
+		TorrentTimeout:              getEnvInt("TORRENT_TIMEOUT", 0),
+		Aria2Port:                   getEnvInt("ARIA2_PORT", 6810),
+		BaseURL:                     getEnv("BASE_URL", ""),
+		BaseURLPort:                 getEnvInt("PORT", getEnvInt("BASE_URL_PORT", 23434)),
+		MegaEmail:                   getEnv("MEGA_EMAIL", ""),
+		MegaPassword:                getEnv("MEGA_PASSWORD", ""),
+		TokenTimeout:                getEnvInt64("TOKEN_TIMEOUT", 0),
+		LoginPass:                   getEnv("LOGIN_PASS", ""),
+		Shortener:                   getEnv("SHORTENER", ""),
+		ShortenerAPI:                getEnv("SHORTENER_API", ""),
+		ShortenerEnabled:            getEnvBool("SHORTENER_ENABLED", true),
+		TokenInPM:                   getEnvBool("TOKEN_IN_PM", true),
+		ScreenshotsMode:             getEnvBool("SCREENSHOTS_MODE", false),
+		ShowMediaInfo:               getEnvBool("SHOW_MEDIAINFO", false),
+		SaveMsg:                     getEnvBool("SAVE_MSG", false),
+		SourceLink:                  getEnvBool("SOURCE_LINK", false),
+		Metadata:                    getEnv("METADATA", ""),
+		TitleName:                   getEnv("TITLE_NAME", "AZML-Go"),
+		AuthorName:                  getEnv("AUTHOR_NAME", "AZML-Go"),
+		AuthorURL:                   getEnv("AUTHOR_URL", "https://t.me/CANON_BOTS"),
+		BotTheme:                    getEnv("BOT_THEME", "minimal"),
+		ShowExtraCmds:               getEnvBool("SHOW_EXTRA_CMDS", true),
+		Timezone:                    getEnv("TIMEZONE", "Asia/Kolkata"),
+		EnableFFmpegCmds:            getEnvBool("ENABLE_FFMPEG_CMDS", true),
+		FFmpegEncoding:              getEnvBool("FFMPEG_ENCODING", false),
+		TMDBAccessToken:             getEnv("TMDB_ACCESS_TOKEN", ""),
+		AutoThumbnail:               getEnvBool("AUTO_THUMBNAIL", false),
+		CoverImage:                  getEnv("COVER_IMAGE", "https://graph.org/file/60f9f8bcb97d27f76f5c0.jpg"),
+		DDLAPI:                      getEnv("DDL_API", getEnv("THUNDER_API", "")),
+		QueueAll:                    getEnvInt("QUEUE_ALL", getEnvInt("BOT_MAX_TASKS", 4)),
+		QueueDownload:               getEnvInt("QUEUE_DOWNLOAD", getEnvInt("USER_MAX_TASKS", 2)),
+		QueueUpload:                 getEnvInt("QUEUE_UPLOAD", 2),
+		LeechLimit:                  getEnvInt64("LEECH_LIMIT", 0),
+		TorrentLimit:                getEnvInt64("TORRENT_LIMIT", 0),
+		DirectLimit:                 getEnvInt64("DIRECT_LIMIT", 0),
+		YtdlpLimit:                  getEnvInt64("YTDLP_LIMIT", 0),
+		MegaLimit:                   getEnvInt64("MEGA_LIMIT", 0),
+		ArchiveLimit:                getEnvInt64("ARCHIVE_LIMIT", 0),
+		ExtractLimit:                getEnvInt64("EXTRACT_LIMIT", 0),
+		DailyLeechLimit:             getEnvInt64("DAILY_LEECH_LIMIT", 0),
+		DailyTaskLimit:              getEnvInt("DAILY_TASK_LIMIT", 0),
+		StorageThreshold:            getEnvInt64("STORAGE_THRESHOLD", 1), // Default 1GB safety cushion
+		DumpChatID:                  getEnvInt64("DUMP_CHAT_ID", getEnvInt64("BIN_CHANNEL", getEnvInt64("STORAGE_CHANNEL", getEnvInt64("STORAGE_CHANNELS", getEnvInt64("LEECH_LOG_ID", 0))))),
 	}
 
 	// Resolve main bot token

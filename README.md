@@ -248,6 +248,8 @@ docker compose down
 
 ## ⚙️ Configuration Variables
 
+For Smart Auto Rename mode, provider setup, supported filename patterns, and fallback behavior, see [Smart Auto Rename documentation](docs/SMART_AUTORENAME.md). For Smart Caption V1/V2 layouts and the full caption-template placeholder reference, see [Smart Caption documentation](docs/SMART_CAPTION.md).
+
 <details>
   <summary><b>Mandatory Variables</b></summary>
 

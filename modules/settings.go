@@ -168,11 +168,7 @@ func (m *SettingsModule) HandleSettings(ctx context.Context, peer tg.InputPeerCl
 			_, _ = m.sender.SendMessage(ctx, peer, fmt.Sprintf("◈ <b>Auto Thumbnail</b> is now: <b>%s</b>", st), msg.MessageID, nil)
 			return
 		case "method", "rename_method":
-			if u.RenameMethod == "auto" {
-				u.RenameMethod = "regex"
-			} else {
-				u.RenameMethod = "auto"
-			}
+			u.RenameMethod = nextRenameMethod(u.RenameMethod)
 			_ = ext.DB.SaveUser(u)
 			_, _ = m.sender.SendMessage(ctx, peer, fmt.Sprintf("• <b>Rename Method</b> is now: <b>%s</b>", strings.Title(u.RenameMethod)), msg.MessageID, nil)
 			return
@@ -385,9 +381,12 @@ func (m *SettingsModule) buildLeechMenu(u *types.UserSettings, userName string) 
 		remnameRegex = u.RemnameRegex
 	}
 
-	renameMethod := "Auto Rename"
+	renameMethod := "Template"
 	if u.RenameMethod == "regex" {
 		renameMethod = "Regex"
+	}
+	if u.RenameMethod == "smart" {
+		renameMethod = "Smart Auto Rename"
 	}
 
 	autorename := "Disabled"
@@ -472,12 +471,15 @@ func (m *SettingsModule) buildLeechMenu(u *types.UserSettings, userName string) 
 	btn.IButtonStyled("◈ "+telegram.ToSmallCaps("Metadata"), fmt.Sprintf("userset %d lmeta", u.UserID), "primary")
 	btn.Row()
 
-	// Row 7: Rename Method toggle
+	// Row 7: Rename Method cycles through legacy Template, Regex, and opt-in Smart modes.
+	methodLabel := "Template"
 	if u.RenameMethod == "regex" {
-		btn.IButtonStyled("• "+telegram.ToSmallCaps("Rename Method: Regex"), fmt.Sprintf("userset %d rename_method", u.UserID), "primary")
-	} else {
-		btn.IButtonStyled("• "+telegram.ToSmallCaps("Rename Method: Auto"), fmt.Sprintf("userset %d rename_method", u.UserID), "primary")
+		methodLabel = "Regex"
 	}
+	if u.RenameMethod == "smart" {
+		methodLabel = "Smart"
+	}
+	btn.IButtonStyled("• "+telegram.ToSmallCaps("Rename Method: "+methodLabel), fmt.Sprintf("userset %d rename_method", u.UserID), "primary")
 	btn.Row()
 
 	// Footer: Back | Close
@@ -592,12 +594,17 @@ func (m *SettingsModule) buildCaptionMenu(u *types.UserSettings) (string, *teleg
 	text := fmt.Sprintf("⌬ <b><u>%s</u></b>\n\n"+
 		"┠ <b>Current Caption:</b>\n<code>%s</code>\n\n"+
 		"➲ <b>Supported Format Tags:</b>\n"+
-		"• <code>{filename}</code> - Original or renamed filename\n"+
-		"• <code>{size}</code> - File size (e.g. 1.25 GB)\n"+
-		"• <code>{duration}</code> - Video duration (e.g. 01:23:45)\n"+
-		"• <code>{quality}</code> - Video quality (e.g. 1080p, 720p)\n"+
-		"• <code>{languages}</code> - Audio stream languages\n"+
-		"• <code>{subtitles}</code> - Subtitle languages",
+		"• <code>{filename}</code> / <code>{physical_filename}</code> - Actual filename on disk\n"+
+		"• <code>{orig_filename}</code> - Original incoming filename\n"+
+		"• <code>{smart_filename}</code> - Proposed normalized filename\n"+
+		"• <code>{smartcaption}</code> / <code>{smartcaptionv2}</code> - Detailed Smart Caption\n"+
+		"• <code>{smartcaptionv1}</code> - Smart Caption with per-track audio details\n"+
+		"• <code>{show_name}</code>, <code>{season}</code>, <code>{episode}</code>, <code>{title}</code>, <code>{year}</code> - Parsed/canonical media identity\n"+
+		"• <code>{quality}</code>, <code>{source}</code>, <code>{platform}</code>, <code>{codec}</code>, <code>{encoder}</code> - Release/video details\n"+
+		"• <code>{audio_summary}</code>, <code>{languages}</code>, <code>{subtitle}</code>, <code>{subtitles}</code> - Audio and subtitles\n"+
+		"• <code>{hdr}</code>, <code>{bit_depth}</code>, <code>{split_suffix}</code> - Additional media details\n"+
+		"• <code>{size}</code>, <code>{duration}</code>, <code>{mime_type}</code>, <code>{md5_hash}</code> - File information\n"+
+		"Smart metadata tags are populated when Rename Method is <code>smart</code>; unavailable values become empty.",
 		telegram.ToSmallCaps("Leech Caption Template"), caption)
 
 	btn := telegram.NewButtonMaker()
@@ -882,11 +889,7 @@ func (m *SettingsModule) HandleCallback(ctx context.Context, peer tg.InputPeerCl
 		_ = m.sender.EditMessageWithButtons(ctx, peer, msgID, text, btn, 2)
 
 	case "rename_method":
-		if u.RenameMethod == "auto" {
-			u.RenameMethod = "regex"
-		} else {
-			u.RenameMethod = "auto"
-		}
+		u.RenameMethod = nextRenameMethod(u.RenameMethod)
 		go func(usr *types.UserSettings) { _ = ext.DB.SaveUser(usr) }(u)
 		_ = m.sender.AnswerCallback(ctx, queryID, fmt.Sprintf("Method: %s", strings.Title(u.RenameMethod)), false)
 		text, btn := m.buildLeechMenu(u, "")
@@ -1009,7 +1012,10 @@ func (m *SettingsModule) HandleCallback(ctx context.Context, peer tg.InputPeerCl
 		ext.SetPendingSettingSession(targetUID, "lcaption", 0, msgID, 60*time.Second)
 		prompt := "⌬ <b><u>Set Custom Leech Caption</u></b>\n\n" +
 			"Send new caption template within <b>60 seconds</b>.\n\n" +
-			"<b>Tags:</b> <code>{filename}</code>, <code>{size}</code>, <code>{duration}</code>, <code>{quality}</code>, <code>{languages}</code>"
+			"<b>Basic:</b> <code>{filename}</code>, <code>{physical_filename}</code>, <code>{orig_filename}</code>, <code>{size}</code>, <code>{duration}</code>\n" +
+			"<b>Smart:</b> <code>{smart_filename}</code>, <code>{smartcaption}</code>, <code>{smartcaptionv1}</code>, <code>{smartcaptionv2}</code>\n" +
+			"<b>Media:</b> <code>{show_name}</code>, <code>{season}</code>, <code>{episode}</code>, <code>{title}</code>, <code>{year}</code>, <code>{quality}</code>, <code>{source}</code>, <code>{codec}</code>, <code>{audio_summary}</code>, <code>{subtitle}</code>, <code>{hdr}</code>, <code>{bit_depth}</code>\n\n" +
+			"Smart-specific tags require Rename Method = <code>smart</code>. Unavailable metadata is blank."
 		btn := telegram.NewButtonMaker()
 		btn.IButtonStyled("« "+telegram.ToSmallCaps("Cancel"), fmt.Sprintf("userset %d lcaption", u.UserID), "danger")
 		btn.IButtonStyled("× "+telegram.ToSmallCaps("Close"), fmt.Sprintf("userset %d close", u.UserID), "danger")
@@ -1205,6 +1211,17 @@ func (m *SettingsModule) HandleSettingUpdated(ctx context.Context, peer tg.Input
 	_ = m.sender.EditMessageWithButtons(ctx, peer, promptMsgID, text, btn, 2)
 }
 
+func nextRenameMethod(current string) string {
+	switch strings.ToLower(strings.TrimSpace(current)) {
+	case "auto", "":
+		return "regex"
+	case "regex":
+		return "smart"
+	default:
+		return "auto"
+	}
+}
+
 func (m *SettingsModule) HandleAutoRename(ctx context.Context, peer tg.InputPeerClass, msg *types.MessageContext) {
 	u := m.userMap.GetOrCreate(msg.UserID)
 	parts := strings.SplitN(strings.TrimSpace(msg.Text), " ", 2)
@@ -1220,7 +1237,8 @@ func (m *SettingsModule) HandleAutoRename(ctx context.Context, peer tg.InputPeer
 			text := fmt.Sprintf("⌬ <b><u>%s :</u></b>\n\n"+
 				"<code>%s</code>\n\n"+
 				"<b>Usage:</b> <code>/ar [template]</code>\n"+
-				"<b>Clear:</b> <code>/ar off</code>",
+				"<b>Clear:</b> <code>/ar off</code>\n"+
+				"<b>Mode:</b> <code>/ar mode auto|regex|smart</code>",
 				telegram.ToSmallCaps("Current AutoRename Template"),
 				telegram.EscapeHTML(current))
 			_, _ = m.sender.SendMessage(ctx, peer, text, msg.MessageID, nil)
@@ -1237,6 +1255,7 @@ func (m *SettingsModule) HandleAutoRename(ctx context.Context, peer tg.InputPeer
 				"  • <code>{audio}</code> — audio codec\n"+
 				"  • <code>{chapter}</code> — chapter number\n"+
 				"  • <code>{episode:+N}</code> — episode with offset\n\n"+
+				"<b>Rename modes:</b> <code>/ar mode auto|regex|smart</code>\n"+
 				"<b>Clear:</b> <code>/ar off</code>",
 				telegram.ToSmallCaps("AutoRename Guide"))
 			_, _ = m.sender.SendMessage(ctx, peer, text, msg.MessageID, nil)
@@ -1245,6 +1264,26 @@ func (m *SettingsModule) HandleAutoRename(ctx context.Context, peer tg.InputPeer
 	}
 
 	template := strings.TrimSpace(parts[1])
+	lowerTemplate := strings.ToLower(template)
+	if strings.HasPrefix(lowerTemplate, "mode ") {
+		mode := strings.TrimSpace(strings.TrimPrefix(lowerTemplate, "mode "))
+		if mode != "auto" && mode != "regex" && mode != "smart" {
+			_, _ = m.sender.SendMessage(ctx, peer, "Invalid rename mode. Use <code>/ar mode auto</code>, <code>/ar mode regex</code>, or <code>/ar mode smart</code>.", msg.MessageID, nil)
+			return
+		}
+		u.RenameMethod = mode
+		u.Autorename = true
+		_ = ext.DB.SaveUser(u)
+		_, _ = m.sender.SendMessage(ctx, peer, fmt.Sprintf("✓ Rename mode set to <b>%s</b>.", strings.Title(mode)), msg.MessageID, nil)
+		return
+	}
+	if lowerTemplate == "smart" || lowerTemplate == "regex" || lowerTemplate == "auto" {
+		u.RenameMethod = lowerTemplate
+		u.Autorename = true
+		_ = ext.DB.SaveUser(u)
+		_, _ = m.sender.SendMessage(ctx, peer, fmt.Sprintf("✓ Rename mode set to <b>%s</b>.", strings.Title(lowerTemplate)), msg.MessageID, nil)
+		return
+	}
 
 	// --- Clear template ---
 	switch strings.ToLower(template) {

@@ -1050,7 +1050,12 @@ func (m *LeechModule) processLeechPipeline(peer tg.InputPeerClass, msg *types.Me
 	var filesToUpload []string
 	if fi, err := os.Stat(downloadedPath); err == nil && fi.IsDir() {
 		_ = filepath.Walk(downloadedPath, func(path string, info os.FileInfo, err error) error {
-			if err == nil && !info.IsDir() {
+			if err != nil {
+				return nil
+			}
+			// Smart rename and metadata processing operate only on regular files. Do not
+			// follow or process symlinks/special files discovered inside downloaded folders.
+			if info.Mode().IsRegular() {
 				base := filepath.Base(path)
 				if !strings.HasPrefix(base, ".") && !strings.HasSuffix(base, ".aria2") {
 					filesToUpload = append(filesToUpload, path)
@@ -1109,6 +1114,7 @@ func (m *LeechModule) processLeechPipeline(peer tg.InputPeerClass, msg *types.Me
 	}
 
 	for _, curFile := range filesToUpload {
+		originalIncomingName := filepath.Base(curFile)
 		origBase := filepath.Base(curFile)
 		origBase = strings.TrimPrefix(origBase, "meta_")
 		origBase = strings.TrimPrefix(origBase, "ff_")
@@ -1127,25 +1133,57 @@ func (m *LeechModule) processLeechPipeline(peer tg.InputPeerClass, msg *types.Me
 			}
 		}
 
-		// File Renaming
-		finalName, caption := ext.FormatFilename(origBase, user, curFile)
-		if opt.CustomName != "" && len(filesToUpload) == 1 {
-			finalName = opt.CustomName
-		}
-		if filepath.Ext(finalName) == "" {
-			if origExt := filepath.Ext(origBase); origExt != "" {
-				finalName += origExt
-			} else if detectedExt := ext.DetectExtension(curFile); detectedExt != "" {
-				finalName += detectedExt
+		// File Renaming. Smart mode is shared with yt-dlp and is skipped for explicit custom names.
+		finalName, caption := "", ""
+		smartApplied := false
+		if user != nil && user.Autorename && strings.EqualFold(user.RenameMethod, "smart") && opt.CustomName == "" {
+			if !cfg.SmartRenameEnabled {
+				log.Printf("[LEECH Smart AutoRename] disabled by configuration; keeping %s", originalIncomingName)
+				finalName = filepath.Base(curFile)
+				caption = ext.BuildSmartFallbackCaption(curFile, user, originalIncomingName)
+				smartApplied = true
+			} else {
+				smartResult, smartCaption, smartErr := ext.PrepareSmartRename(ctx, curFile, user, originalIncomingName)
+				if smartErr != nil {
+					log.Printf("[LEECH Smart AutoRename] %s: %v; keeping original path", originalIncomingName, smartErr)
+					finalName = filepath.Base(curFile)
+					caption = ext.BuildSmartFallbackCaption(curFile, user, originalIncomingName)
+					smartApplied = true
+				} else {
+					ext.LogSmartRenameWarnings(smartResult)
+					finalName, caption, curFile, smartApplied = smartResult.PhysicalFilename, smartCaption, smartResult.PhysicalPath, true
+				}
 			}
 		}
-		finalName = ext.SanitizeFilename(finalName)
-		uTask.SetName(finalName)
-		renamedPath := filepath.Join(filepath.Dir(curFile), finalName)
-		if renamedPath != curFile {
-			_ = os.Rename(curFile, renamedPath)
-			curFile = renamedPath
+		if !smartApplied {
+			finalName, caption = ext.FormatFilename(origBase, user, curFile)
+			if opt.CustomName != "" && len(filesToUpload) == 1 {
+				finalName = opt.CustomName
+			}
+			if filepath.Ext(finalName) == "" {
+				if origExt := filepath.Ext(origBase); origExt != "" {
+					finalName += origExt
+				} else if detectedExt := ext.DetectExtension(curFile); detectedExt != "" {
+					finalName += detectedExt
+				}
+			}
+			finalName = ext.SanitizeFilename(finalName)
+			renamedPath := filepath.Join(filepath.Dir(curFile), finalName)
+			if renamedPath != curFile {
+				if renameErr := ext.SafeRenameFile(curFile, finalName); renameErr != nil {
+					attemptedName := finalName
+					log.Printf("[LEECH Rename] Could not rename %s to %s: %v; keeping original path", filepath.Base(curFile), finalName, renameErr)
+					finalName = filepath.Base(curFile)
+					caption = strings.ReplaceAll(caption, attemptedName, finalName)
+				} else {
+					curFile = renamedPath
+				}
+			}
 		}
+		if finalName == "" {
+			finalName = filepath.Base(curFile)
+		}
+		uTask.SetName(finalName)
 		uploadedNames = append(uploadedNames, finalName)
 
 		// Screenshots

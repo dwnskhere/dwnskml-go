@@ -22,7 +22,7 @@ type UserSettings struct {
 	Suffix         string            `json:"suffix" bson:"suffix"`
 	RemnameAuto    string            `json:"remname_auto" bson:"remname_auto"`
 	RemnameRegex   string            `json:"remname_regex" bson:"remname_regex"`
-	RenameMethod   string            `json:"rename_method" bson:"rename_method"` // "auto" or "regex"
+	RenameMethod   string            `json:"rename_method" bson:"rename_method"` // "auto", "regex", or "smart"
 	Autorename     bool              `json:"autorename" bson:"autorename"`
 	Caption        string            `json:"caption" bson:"caption"`
 	CustomThumb    string            `json:"custom_thumb" bson:"custom_thumb"`
